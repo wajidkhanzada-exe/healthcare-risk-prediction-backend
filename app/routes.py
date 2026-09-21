@@ -10,6 +10,15 @@ from .extractor import extract_fields_from_document
 bp = Blueprint("api", __name__)
 
 
+@bp.route("/", methods=["GET"])
+def home():
+    """Simple root endpoint to confirm the API is running."""
+    return jsonify({
+        "status": "ok",
+        "message": "Healthcare Risk Prediction API is running"
+    }), 200
+
+
 @bp.route("/health", methods=["GET"])
 def health():
     """Simple check to confirm the server is running."""
