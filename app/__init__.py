@@ -1,8 +1,12 @@
 from flask import Flask
 from flask_cors import CORS
-from dotenv import load_dotenv
 from pathlib import Path
 import os
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
 
 from .predictor import HealthPredictor
 
@@ -20,8 +24,9 @@ from .predictor import HealthPredictor
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = BASE_DIR / ".env"
 
-# Load the project's .env file
-load_dotenv(dotenv_path=ENV_FILE)
+# Load the project's .env file when python-dotenv is available
+if load_dotenv:
+    load_dotenv(dotenv_path=ENV_FILE)
 
 
 # ============================================================
