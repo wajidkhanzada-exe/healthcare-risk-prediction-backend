@@ -1,0 +1,416 @@
+{
+  "project": "AI Healthcare Risk Prediction & Patient Report System",
+  "artifact_version": "1.0",
+  "environment": {
+    "python": "3.13.15",
+    "scikit-learn": "1.6.1",
+    "xgboost": "3.4.1",
+    "pandas": "2.2.3",
+    "numpy": "2.1.3",
+    "joblib": "1.6.0"
+  },
+  "risk_thresholds": null,
+  "risk_categories": [
+    "Low",
+    "Medium",
+    "High"
+  ],
+  "diseases": {
+    "diabetes": {
+      "display_name": "Diabetes",
+      "base_model": "XGBoost",
+      "calibration": "CalibratedClassifierCV (sigmoid, cv=5)",
+      "target_column": "diabetes",
+      "preprocessor_file": "diabetes_preprocessor.joblib",
+      "model_file": "diabetes_model.joblib",
+      "input_columns": [
+        "gender",
+        "age",
+        "hypertension",
+        "heart_disease",
+        "smoking_history",
+        "bmi",
+        "HbA1c_level",
+        "blood_glucose_level"
+      ],
+      "numeric_features": [
+        "age",
+        "bmi",
+        "HbA1c_level",
+        "blood_glucose_level"
+      ],
+      "categorical_features": [
+        "gender",
+        "smoking_history",
+        "hypertension",
+        "heart_disease"
+      ],
+      "categorical_options": {
+        "gender": [
+          "Female",
+          "Male",
+          "Other"
+        ],
+        "smoking_history": [
+          "No Info",
+          "current",
+          "ever",
+          "former",
+          "never",
+          "not current"
+        ],
+        "hypertension": [
+          "0",
+          "1"
+        ],
+        "heart_disease": [
+          "0",
+          "1"
+        ]
+      },
+      "numeric_ranges": {
+        "age": {
+          "min": 0.08,
+          "max": 80.0,
+          "median": 43.0
+        },
+        "bmi": {
+          "min": 10.01,
+          "max": 95.22,
+          "median": 27.32
+        },
+        "HbA1c_level": {
+          "min": 3.5,
+          "max": 9.0,
+          "median": 5.8
+        },
+        "blood_glucose_level": {
+          "min": 80.0,
+          "max": 300.0,
+          "median": 140.0
+        }
+      },
+      "n_train_samples": 76916,
+      "low_category_disclaimer": null
+    },
+    "heart": {
+      "display_name": "Heart Disease",
+      "base_model": "Logistic Regression",
+      "calibration": "CalibratedClassifierCV (sigmoid, cv=5)",
+      "target_column": "HeartDisease",
+      "preprocessor_file": "heart_preprocessor.joblib",
+      "model_file": "heart_model.joblib",
+      "input_columns": [
+        "Age",
+        "Sex",
+        "ChestPainType",
+        "RestingBP",
+        "Cholesterol",
+        "FastingBS",
+        "ExerciseAngina"
+      ],
+      "numeric_features": [
+        "Age",
+        "RestingBP",
+        "Cholesterol"
+      ],
+      "categorical_features": [
+        "Sex",
+        "ChestPainType",
+        "FastingBS",
+        "ExerciseAngina"
+      ],
+      "categorical_options": {
+        "Sex": [
+          "F",
+          "M"
+        ],
+        "ChestPainType": [
+          "ASY",
+          "ATA",
+          "NAP",
+          "TA"
+        ],
+        "FastingBS": [
+          "0",
+          "1"
+        ],
+        "ExerciseAngina": [
+          "N",
+          "Y"
+        ]
+      },
+      "numeric_ranges": {
+        "Age": {
+          "min": 29.0,
+          "max": 77.0,
+          "median": 54.0
+        },
+        "RestingBP": {
+          "min": 92.0,
+          "max": 200.0,
+          "median": 130.0
+        },
+        "Cholesterol": {
+          "min": 85.0,
+          "max": 603.0,
+          "median": 237.0
+        }
+      },
+      "n_train_samples": 730,
+      "low_category_disclaimer": null
+    },
+    "ckd": {
+      "display_name": "Chronic Kidney Disease",
+      "base_model": "Random Forest",
+      "calibration": "CalibratedClassifierCV (sigmoid, cv=5)",
+      "target_column": "Diagnosis",
+      "preprocessor_file": "ckd_preprocessor.joblib",
+      "model_file": "ckd_model.joblib",
+      "input_columns": [
+        "Age",
+        "Gender",
+        "BMI",
+        "SystolicBP",
+        "DiastolicBP",
+        "FastingBloodSugar",
+        "HbA1c",
+        "SerumCreatinine",
+        "BUNLevels",
+        "GFR",
+        "ProteinInUrine",
+        "ACR",
+        "SerumElectrolytesSodium",
+        "SerumElectrolytesPotassium",
+        "SerumElectrolytesCalcium",
+        "SerumElectrolytesPhosphorus",
+        "HemoglobinLevels",
+        "CholesterolTotal",
+        "CholesterolLDL",
+        "CholesterolHDL",
+        "CholesterolTriglycerides",
+        "FamilyHistoryKidneyDisease",
+        "FamilyHistoryHypertension",
+        "FamilyHistoryDiabetes",
+        "PreviousAcuteKidneyInjury",
+        "UrinaryTractInfections",
+        "Smoking",
+        "Edema",
+        "FatigueLevels",
+        "NauseaVomiting",
+        "MuscleCramps",
+        "Itching"
+      ],
+      "numeric_features": [
+        "Age",
+        "BMI",
+        "SystolicBP",
+        "DiastolicBP",
+        "FastingBloodSugar",
+        "HbA1c",
+        "SerumCreatinine",
+        "BUNLevels",
+        "GFR",
+        "ProteinInUrine",
+        "ACR",
+        "SerumElectrolytesSodium",
+        "SerumElectrolytesPotassium",
+        "SerumElectrolytesCalcium",
+        "SerumElectrolytesPhosphorus",
+        "HemoglobinLevels",
+        "CholesterolTotal",
+        "CholesterolLDL",
+        "CholesterolHDL",
+        "CholesterolTriglycerides",
+        "FatigueLevels",
+        "NauseaVomiting",
+        "MuscleCramps",
+        "Itching"
+      ],
+      "categorical_features": [
+        "Gender",
+        "FamilyHistoryKidneyDisease",
+        "FamilyHistoryHypertension",
+        "FamilyHistoryDiabetes",
+        "PreviousAcuteKidneyInjury",
+        "UrinaryTractInfections",
+        "Smoking",
+        "Edema"
+      ],
+      "categorical_options": {
+        "Gender": [
+          "0",
+          "1"
+        ],
+        "FamilyHistoryKidneyDisease": [
+          "0",
+          "1"
+        ],
+        "FamilyHistoryHypertension": [
+          "0",
+          "1"
+        ],
+        "FamilyHistoryDiabetes": [
+          "0",
+          "1"
+        ],
+        "PreviousAcuteKidneyInjury": [
+          "0",
+          "1"
+        ],
+        "UrinaryTractInfections": [
+          "0",
+          "1"
+        ],
+        "Smoking": [
+          "0",
+          "1"
+        ],
+        "Edema": [
+          "0",
+          "1"
+        ]
+      },
+      "numeric_ranges": {
+        "Age": {
+          "min": 20.0,
+          "max": 90.0,
+          "median": 54.0
+        },
+        "BMI": {
+          "min": 15.033888112448722,
+          "max": 39.992690945545775,
+          "median": 27.814597578312764
+        },
+        "SystolicBP": {
+          "min": 90.0,
+          "max": 179.0,
+          "median": 135.0
+        },
+        "DiastolicBP": {
+          "min": 60.0,
+          "max": 119.0,
+          "median": 89.0
+        },
+        "FastingBloodSugar": {
+          "min": 70.04476783799034,
+          "max": 199.96042921611885,
+          "median": 129.82280377462152
+        },
+        "HbA1c": {
+          "min": 4.000404985879447,
+          "max": 9.998392505774037,
+          "median": 7.006917776867702
+        },
+        "SerumCreatinine": {
+          "min": 0.5017986166519621,
+          "max": 4.99863744346581,
+          "median": 2.7374135120283443
+        },
+        "BUNLevels": {
+          "min": 5.00024915040821,
+          "max": 49.99052173156679,
+          "median": 28.05617826387889
+        },
+        "GFR": {
+          "min": 15.107849554132432,
+          "max": 119.9202609235662,
+          "median": 66.50704740002186
+        },
+        "ProteinInUrine": {
+          "min": 0.0009001949198139,
+          "max": 4.99634342598158,
+          "median": 2.549416570545032
+        },
+        "ACR": {
+          "min": 0.1784274127972218,
+          "max": 299.58001918489805,
+          "median": 151.36196761522663
+        },
+        "SerumElectrolytesSodium": {
+          "min": 135.01295879911777,
+          "max": 144.98749511659565,
+          "median": 139.8868454478869
+        },
+        "SerumElectrolytesPotassium": {
+          "min": 3.5034076560821124,
+          "max": 5.499781129262785,
+          "median": 4.501217367440198
+        },
+        "SerumElectrolytesCalcium": {
+          "min": 8.50003347251587,
+          "max": 10.49657832697977,
+          "median": 9.504651578660392
+        },
+        "SerumElectrolytesPhosphorus": {
+          "min": 2.509616863088791,
+          "max": 4.498314216388547,
+          "median": 3.513489159675776
+        },
+        "HemoglobinLevels": {
+          "min": 10.004222749486658,
+          "max": 17.999655634950162,
+          "median": 13.961895864667316
+        },
+        "CholesterolTotal": {
+          "min": 150.01570661972153,
+          "max": 299.95084598413274,
+          "median": 222.17192271220097
+        },
+        "CholesterolLDL": {
+          "min": 50.07459725796847,
+          "max": 199.78417043477776,
+          "median": 125.71873178231212
+        },
+        "CholesterolHDL": {
+          "min": 20.03099303763556,
+          "max": 99.98730403983376,
+          "median": 61.03273368353434
+        },
+        "CholesterolTriglycerides": {
+          "min": 50.26766821287434,
+          "max": 399.8773370191864,
+          "median": 224.30784203485945
+        },
+        "FatigueLevels": {
+          "min": 0.0151942211098266,
+          "max": 9.988238112132406,
+          "median": 5.121410776433252
+        },
+        "NauseaVomiting": {
+          "min": 0.0051709386681718,
+          "max": 6.9973322656079056,
+          "median": 3.56023222790762
+        },
+        "MuscleCramps": {
+          "min": 0.0083924711721895,
+          "max": 6.984636330091423,
+          "median": 3.6292440456683095
+        },
+        "Itching": {
+          "min": 0.0136967111948138,
+          "max": 9.988907161325468,
+          "median": 5.0870864457058405
+        }
+      },
+      "n_train_samples": 1327,
+      "low_category_disclaimer": "This dataset has weak predictive signal for CKD; a 'Low' result here should not be treated as reassurance. Clinical consultation is strongly advised regardless of category.",
+      "threshold_derivation": "Out-of-fold (5-fold CV) probabilities on TRAINING data only; 10th/40th percentile cuts. Test set was never used to derive thresholds.",
+      "dataset_note": "91.9% positive prevalence (1524 pos / 135 neg). Specificity estimates rest on ~27 negative test cases and are statistically unstable. Risk categories reflect relative risk within this cohort, not absolute clinical risk."
+    }
+  },
+  "risk_thresholds_by_disease": {
+    "diabetes": {
+      "low_max": 0.3,
+      "medium_max": 0.7
+    },
+    "heart": {
+      "low_max": 0.3,
+      "medium_max": 0.7
+    },
+    "ckd": {
+      "low_max": 0.8351,
+      "medium_max": 0.9556
+    }
+  }
+}

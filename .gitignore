@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+.env
+saved_models_v1.zip
+saved_models_v2.zip
