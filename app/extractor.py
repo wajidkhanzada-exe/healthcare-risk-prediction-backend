@@ -19,8 +19,9 @@ GENERATION_MODEL = "gemini-2.5-flash"
 # Field ids MUST match the "id" values in the frontend's FIELD_CATALOG.
 # Keep this list in sync if the frontend catalog changes.
 EXTRACTABLE_FIELDS = """
-- age (years)
-- gender (Male/Female)
+- fullName (patient's full name, usually near the top of the report)
+- age (years — may appear combined with sex, e.g. "27 YRS / M" means age is 27)
+- gender (Male/Female — reports often abbreviate this as M or F; convert to the full word "Male" or "Female")
 - bmi (Body Mass Index)
 - systolicBP (systolic blood pressure, mmHg)
 - diastolicBP (diastolic blood pressure, mmHg)
@@ -41,7 +42,7 @@ EXTRACTABLE_FIELDS = """
 - calcium (serum calcium, mg/dL)
 - phosphorus (serum phosphorus, mg/dL)
 - hemoglobin (g/dL)
-- hematocrit (%)"""
+"""
 
 def _build_valid_ids():
     valid_ids = set()
@@ -72,11 +73,18 @@ ONLY the following fields, if present:
 {EXTRACTABLE_FIELDS}
 
 Rules:
+- Check the patient demographics header (usually near the top of the report,
+  often near the patient's name, registration number, or referring doctor)
+  carefully for fullName, age, and gender/sex — these are frequently combined
+  on one line, e.g. "Age/Sex: 27 YRS/M" means age=27 and gender=Male.
 - Return ONLY a JSON object, with field ids as keys exactly as listed above.
+- fullName should be the plain text name (e.g. "Saubhik Bhaumik"), without
+  titles like "Mr." or "Mrs.".
 - Only include a field if you actually found its value in the document.
 - Do NOT guess, estimate, or make up a value for anything not clearly stated.
 - Numbers should be plain numbers (no units in the value).
-- gender should be exactly "Male" or "Female" if found.
+- gender should be exactly "Male" or "Female" if found, even if the report
+  abbreviates it as M or F.
 - If you find NOTHING usable in the document, return an empty JSON object {{}}.
 """
 
