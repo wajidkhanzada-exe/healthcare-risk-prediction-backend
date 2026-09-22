@@ -104,7 +104,8 @@ def create_app():
             "http://127.0.0.1:3000",
             "http://localhost:5173",
             "http://127.0.0.1:5173",
-            "https://healthcare-risk-prediction-frontend.vercel.app"
+            "https://healthcare-risk-prediction-frontend.vercel.app",
+            "https://healthriskkk-ai.vercel.app/"
         ]
     )
 
