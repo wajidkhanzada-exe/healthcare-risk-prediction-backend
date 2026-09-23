@@ -204,4 +204,8 @@ The server loads all three models, preprocessors, and SHAP explainers once at st
 
 - **CKD's `Gender` encoding is an assumption, not a verified fact.** The training dataset's Gender column had no published data dictionary; the frontend assumes `Female=0, Male=1` (scikit-learn's default `LabelEncoder` convention). This should be re-verified against the training notebook before the CKD model's gender-based behavior is trusted.
 - **CKD's predictive signal is comparatively weak.** Even after switching to a larger dataset, correlations with the target are low, and probability distributions for the two classes overlap substantially. CKD's "Low" risk category in particular should not be read as strong reassurance — a disclaimer is surfaced to the user for that case specifically.
+<<<<<<< HEAD
 - **This is not a medical device.** Outputs are probabilistic estimates from models trained on public/synthetic datasets, not a diagnosis. A disclaimer to this effect is shown with every report.
+=======
+- **This is not a medical device.** Outputs are probabilistic estimates from models trained on public/synthetic datasets, not a diagnosis. A disclaimer to this effect is shown with every report.
+>>>>>>> 271d6a49cdaff3b3a3c53ceabad88e56fe7829e1
