@@ -1,209 +1,207 @@
 # Healthcare Risk Prediction — Backend
 
-A Flask-based backend that predicts a patient's risk of **Diabetes**, **Heart
-Disease**, and **Chronic Kidney Disease (CKD)** from clinical data, then
-generates a plain-language explanation and lifestyle/exercise recommendations
-for each result using Retrieval-Augmented Generation (RAG) grounded in
-trusted medical sources, powered by Google Gemini.
+A Flask API that predicts risk for three chronic diseases (Diabetes, Heart Disease, Chronic Kidney Disease) from partial patient data, explains each prediction with SHAP, and generates a grounded, patient-friendly report using Retrieval-Augmented Generation (RAG) over official medical sources and Gemini.
 
-This is the API layer for the project. The React frontend lives in a
-separate repository.
+**Live API:** https://healthcare-risk-prediction-backend.vercel.app/
+**Live App:** https://healthriskkk-ai.vercel.app/
+**Frontend repo:** https://github.com/wajidkhanzada-exe/healthcare-risk-prediction-frontend
 
 ---
 
 ## Overview
 
-- Three independently trained, calibrated ML models (one per disease),
-  built with scikit-learn / XGBoost.
-- A single `/report/full` endpoint accepts partial patient data, runs
-  whichever predictions have enough information, imputes the rest using
-  statistics learned from training, and returns a full report per disease.
-- Each disease result includes a SHAP-based explanation of which patient
-  features most influenced the prediction.
-- A RAG pipeline retrieves the most relevant passages from a small
-  knowledge base of official health guidelines (CDC, NIDDK, ADA) and feeds
-  them to Gemini to generate a grounded, patient-friendly explanation and
-  recommendations — Gemini never invents its own risk numbers, it only
-  explains the numbers the ML models produced.
-- A Gemini-vision-based extractor can read an uploaded lab report (PDF or
-  image) and pre-fill known fields automatically.
+Most "AI health risk" demos train a model on a clean, complete dataset and stop there. This project is built around a harder and more realistic constraint: **real patients almost never provide complete data.** A patient might upload one lab report, or none, and still expect a useful, honestly-caveated answer.
+
+The system is designed around that constraint end-to-end — from how missing values are imputed, to how uncertainty is surfaced to the user, to how much a single disease's weak dataset is allowed to inflate its reported confidence.
+
+```
+Patient
+  │
+  ├── Uploads a lab report (PDF/image)  ──►  Gemini multimodal extraction  ──► partial field values
+  ├── Fills in what they know (form)    ──────────────────────────────────►
+  │
+  ▼
+Patient profile (partial, per-disease)
+  │
+  ▼
+┌─────────────────────────────────────────────────────────┐
+│  For each disease (Diabetes / Heart / CKD):              │
+│    1. Validate provided values                           │
+│    2. Impute missing fields (trained SimpleImputer)      │
+│    3. Predict probability (calibrated model)              │
+│    4. Map probability → Low / Medium / High               │
+│    5. Explain via SHAP → top contributing factors         │
+└─────────────────────────────────────────────────────────┘
+  │
+  ▼
+RAG retrieval over CDC / ADA / NIDDK source documents
+  │
+  ▼
+Gemini — writes explanation + lifestyle plan
+(never invents a probability; only explains ML output)
+  │
+  ▼
+JSON report → frontend
+```
+
+---
 
 ## Tech Stack
 
-| Layer | Technology |
+| Layer | Choice |
 |---|---|
-| Web framework | Flask |
-| ML models | scikit-learn, XGBoost, joblib |
-| Explainability | SHAP |
-| LLM / embeddings | Google Gemini (`google-genai` SDK) |
-| PDF/image parsing | `pdfplumber`, Gemini multimodal input |
-| Auth (verification) | Supabase JWT (verified per-request) |
+| API framework | Flask |
+| ML | scikit-learn 1.6.1, XGBoost 3.2.0 |
+| Explainability | SHAP (model-agnostic `Explainer`) |
+| LLM | Google Gemini (`google-genai`) |
+| RAG | Custom chunking + `gemini-embedding-001` embeddings |
+| PDF/image extraction | Gemini multimodal input |
+| Auth | Supabase Auth (email OTP) |
+| Hosting | Vercel (serverless) |
+| Language / runtime | Python 3.11 |
 
-## Project Structure
+---
 
-```
-healthcare-risk-prediction/
-├── app/
-│   ├── __init__.py        # Flask app factory, loads HealthPredictor once at startup
-│   ├── predictor.py       # Core inference: validation, imputation, prediction, SHAP
-│   ├── extractor.py       # Gemini-based lab report field extraction
-│   ├── rag_generator.py   # RAG retrieval + Gemini explanation/recommendations
-│   └── routes.py          # All API endpoints
-├── rag/
-│   ├── build_index.py     # One-time script: chunks knowledge_base/ PDFs into embeddings
-│   └── retriever.py       # Cosine-similarity retrieval over the embedded chunks
-├── knowledge_base/        # Source PDFs (CDC, NIDDK, ADA guidelines) + generated rag_index.json
-├── saved_models/          # Per-disease preprocessor + calibrated model (.joblib) + metadata.json
-├── requirements.txt
-├── .env                   # GEMINI_API_KEY, SUPABASE_*  (not committed)
-└── run.py                 # Application entry point
-```
+## ML Pipeline
 
-## Getting Started
+Trained and validated in a separate Colab notebook; artifacts (models, preprocessors, metadata, SHAP backgrounds) are exported via `joblib` and loaded once at server startup.
 
-### Prerequisites
-- Python 3.11
-- A Gemini API key ([Google AI Studio](https://aistudio.google.com))
-- A Supabase project (for auth token verification)
+| Disease | Dataset | Rows (after cleaning) | Best model | ROC-AUC | Recall |
+|---|---|---|---|---|---|
+| Diabetes | [Diabetes Prediction Dataset](https://www.kaggle.com/datasets/iammustafatz/diabetes-prediction-dataset) (Kaggle) | 96,146 | XGBoost | 0.978 | 0.92 |
+| Heart Disease | [Heart Failure Prediction Dataset](https://www.kaggle.com/datasets/fedesoriano/heart-failure-prediction) (Kaggle) | 913 | Logistic Regression | 0.900 | 0.88 |
+| Chronic Kidney Disease | [CKD Dataset](https://www.kaggle.com/datasets/rabieelkharoua/chronic-kidney-disease-dataset-analysis) (Kaggle, synthetic) | 1,659 | Random Forest | ~0.83 | see limitations |
 
-### Setup
+All three models are wrapped in `CalibratedClassifierCV` (sigmoid, 5-fold), so a reported probability is meant to reflect an actual frequency, not just a ranking score.
 
-```bash
-python -m venv venv
-venv\Scripts\activate          # Windows
-# source venv/bin/activate     # macOS/Linux
+---
 
-pip install -r requirements.txt
-```
+## Key Engineering Decisions
 
-Create a `.env` file in the project root:
+These are the decisions that mattered most, and why — not just "what the code does."
 
-```
-GEMINI_API_KEY=your_gemini_api_key
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_JWT_SECRET=your_supabase_jwt_secret
-```
+**1. Class imbalance breaks a single global risk threshold.**
+Diabetes and Heart Disease use fixed 0.30 / 0.70 thresholds for Low/Medium/High. The CKD dataset is ~92% positive, so a global threshold pushes almost every patient into "High." CKD instead uses **percentile-based thresholds derived from out-of-fold cross-validated probabilities** (`low_max=0.8351`, `medium_max=0.9556`) — computed without ever touching the test set.
 
-### Build the RAG index (first run only, or whenever `knowledge_base/` changes)
+**2. A near-perfect CKD score was investigated, not trusted.**
+An earlier CKD dataset produced ~100% accuracy. Instead of accepting that, the "healthy" class was inspected directly — every non-CKD patient had lab values sitting in a perfectly normal range with zero borderline cases, which is not realistic. The dataset was swapped for a larger one; even so, CKD's strongest feature correlation is weak (|r| ≈ 0.20), and this is documented rather than hidden.
 
-```bash
-python rag/build_index.py
-```
+**3. Missing data is expected, not an error state.**
+`predictor.py` only requires a low floor (`MINIMUM_FIELDS_REQUIRED = 1`, i.e. *some* relevant signal) rather than a fixed list of mandatory fields. Anything beyond that is passed through as `NaN` and filled in by the same `SimpleImputer` fitted during training. Every response reports `data_completeness` and `estimated_fields`, so the frontend (and the patient) can see exactly how much of a given prediction was estimated.
 
-### Run the server
+**4. Leakage is checked for, not assumed absent.**
+A Heart Disease preprocessing step (dropping ECG/stress-test columns that aren't obtainable from a blood report) caused 5 rows to become exact duplicates *after* the drop — a leak that wasn't visible before that step. Deduplication was moved to run after the column drop, and the model was retrained.
 
-```bash
-python run.py
-```
+**5. Explainability is per-prediction, not global.**
+SHAP explanations are computed against a small k-means background sample (25 points) per disease, using a model-agnostic `Explainer` around each calibrated model's `predict_proba`. Every prediction returns its own top-3 contributing factors (feature, direction, impact) — not a generic "feature importance" chart.
 
-By default this starts in production-safe mode (debug off). For local
-development with auto-reload:
+**6. External LLM calls are treated as unreliable by default.**
+Both the Gemini explanation call and the Gemini extraction call retry on transient `503` errors (2s, then 4s backoff) before falling back to a safe message. Free-tier LLM APIs intermittently throttle concurrent requests; the system degrades gracefully instead of surfacing a raw failure.
 
-```bash
-# Windows PowerShell
-$env:FLASK_DEBUG="1"
-python run.py
-```
+**7. The LLM explains; it does not decide.**
+Gemini is given the ML model's probability and the RAG-retrieved evidence, and is instructed to explain and recommend — never to state its own risk number. This keeps the one component prone to hallucination (the LLM) out of the one place where a wrong number is dangerous.
 
-The API is served at `http://127.0.0.1:5000`.
+---
 
 ## API Reference
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/health` | Liveness check |
-| `GET` | `/diseases` | Returns the field schema (names, types, allowed values, ranges) for all three diseases — used by the frontend to build its form dynamically |
-| `POST` | `/predict/<disease_key>` | Runs a single disease prediction. `disease_key` is `diabetes`, `heart`, or `ckd` |
-| `POST` | `/predict/full` | Runs predictions for whichever diseases have enough data; skips the rest with a reason |
-| `POST` | `/report/full` | Same as `/predict/full`, plus a Gemini-generated, RAG-grounded explanation and recommendations for each result |
-| `POST` | `/extract-report` | Accepts a multipart file upload (PDF/image) and returns extracted field values |
+### `GET /health`
+Liveness check.
 
-### Example: `/report/full`
+### `GET /diseases`
+Returns the input schema (numeric features, categorical options, valid ranges) for all three diseases — the frontend uses this to build its form dynamically.
 
-Request body (fields may be partial — anything omitted is imputed):
+### `POST /predict/<disease_key>`
+`disease_key` is one of `diabetes`, `heart`, `ckd`.
 
 ```json
+// Request
 {
-  "diabetes": { "age": 45, "bmi": 27.3, "HbA1c_level": 6.1, "blood_glucose_level": 140, "gender": "Female", "smoking_history": "never", "hypertension": 0, "heart_disease": 0 },
-  "heart": { "Age": 46, "Sex": "M", "ChestPainType": "ASY", "RestingBP": 115, "Cholesterol": 237, "FastingBS": 0, "ExerciseAngina": "Y" },
-  "ckd": { "Age": 66, "Gender": 1, "BMI": 32.4, "SystolicBP": 91, "SerumElectrolytesSodium": 141.4, "SerumElectrolytesPotassium": 3.8, "HbA1c": 6.6, "Smoking": 0, "FastingBloodSugar": 135.4, "CholesterolTotal": 183 }
+  "age": 55, "bmi": 31.2, "HbA1c_level": 6.8, "blood_glucose_level": 180,
+  "gender": "Male", "smoking_history": "current",
+  "hypertension": "1", "heart_disease": "0"
 }
 ```
 
-Response (abridged):
-
 ```json
+// Response
 {
-  "results": {
-    "diabetes": {
-      "disease": "Diabetes",
-      "probability": 0.0117,
-      "risk_category": "Low",
-      "data_completeness": 100,
-      "estimated_fields": [],
-      "top_factors": [
-        { "feature": "HbA1c Level", "direction": "decreased", "impact": 0.031 }
-      ],
-      "ai_explanation": "## Explanation\n...",
-      "evidence_sources": ["cdc_55506_DS1.pdf"]
-    }
-  },
-  "skipped": {},
-  "summary": {
-    "highest_risk_disease": "...",
-    "highest_risk_category": "...",
-    "diseases_flagged_high": []
+  "disease": "Diabetes",
+  "probability": 0.8712,
+  "risk_category": "High",
+  "disclaimer": null,
+  "warnings": [],
+  "estimated_fields": [],
+  "data_completeness": 100.0,
+  "explanation": {
+    "top_factors": [
+      { "feature": "HbA1c_level", "direction": "increased", "impact": 0.6197 },
+      { "feature": "blood_glucose_level", "direction": "increased", "impact": 0.0476 },
+      { "feature": "heart_disease: 0", "direction": "increased", "impact": 0.0373 }
+    ]
   }
 }
 ```
 
-## Data Completeness & Partial Predictions
+### `POST /predict/full`
+Same idea, run across all three diseases at once. Body is `{ "diabetes": {...}, "heart": {...}, "ckd": {...} }`; any disease section may be partial or omitted. Returns per-disease results, a `skipped` object explaining any disease that couldn't run, and a `summary.highest_risk_disease`.
 
-Each disease has a small set of **critical fields** (e.g. HbA1c and glucose
-for diabetes; sodium/potassium for CKD). If those are missing, the disease
-is skipped rather than predicted from irrelevant defaults. Any other field
-is optional: if omitted, it is imputed using the median/most-frequent value
-learned from the training data, exactly as the trained scikit-learn
-pipeline does. Every response reports `data_completeness` and
-`estimated_fields` so the caller knows how much of the result was
-estimated versus provided.
+### `POST /report/full`
+Everything `/predict/full` returns, plus a Gemini-generated `ai_explanation` and `evidence_sources` per disease, grounded in the RAG knowledge base (CDC Diabetes, ADA, NIDDK CKD, CDC Heart).
 
-## Model Details
+### `POST /extract-report`
+Accepts a `multipart/form-data` upload (`report` field, PDF or image). Uses Gemini's multimodal input to extract lab values matching the frontend's field catalog, returning only fields it actually found — never a guessed value.
 
-| Disease | Final Model | Notes |
-|---|---|---|
-| Diabetes | XGBoost (calibrated) | Global thresholds: Low < 0.30, Medium < 0.70 |
-| Heart Disease | Logistic Regression (calibrated) | Global thresholds: Low < 0.30, Medium < 0.70 |
-| CKD | Random Forest (calibrated) | Disease-specific thresholds (Low < 0.84, Medium < 0.96) — derived from out-of-fold percentiles because the CKD dataset is ~92% positive prevalence |
+---
 
-All models are wrapped in `CalibratedClassifierCV` (sigmoid) so their
-output probabilities are well-calibrated, and all predictions are
-verified bit-exact against the training environment (see
-`saved_models/metadata.json` for the exact library versions used at
-training time).
+## Project Structure
 
-## Disclaimers Built Into the System
+```
+app/
+  __init__.py         # app factory, loads HealthPredictor once at startup
+  routes.py            # all endpoints
+  predictor.py          # HealthPredictor: validation, inference, SHAP explanations
+  rag_generator.py       # RAG retrieval + Gemini report generation, with retry logic
+  extractor.py            # Gemini-based PDF/image lab value extraction, with retry logic
+saved_models/
+  metadata.json                       # input schema, thresholds, categorical options, ranges
+  {disease}_model.joblib               # calibrated classifier per disease
+  {disease}_preprocessor.joblib         # fitted ColumnTransformer per disease
+  {disease}_shap_background.joblib       # k-means background sample per disease
+run.py
+requirements.txt
+```
 
-- CKD results always include a note that the dataset has a weak
-  specificity signal and that even a "Low" result should not be treated
-  as reassurance.
-- Every generated report ends with a reminder that this is not a medical
-  diagnosis and a doctor should be consulted.
-- Gemini is explicitly prompted to only explain the ML models' numbers,
-  never to generate its own probability or risk category.
+---
 
-## Security Notes
+## Setup
 
-- The Gemini API key and Supabase JWT secret are only ever read
-  server-side from environment variables; they are never exposed to the
-  frontend.
-- CORS is restricted to the known frontend origins.
-- Debug mode defaults to off and is only enabled via the `FLASK_DEBUG`
-  environment variable.
+```bash
+python -m venv venv
+venv\Scripts\activate        # Windows
+pip install -r requirements.txt
+```
+
+Create a `.env` file:
+```
+GEMINI_API_KEY=your_key_here
+```
+
+Run locally:
+```bash
+python run.py
+```
+
+The server loads all three models, preprocessors, and SHAP explainers once at startup — check the terminal for:
+```
+[HealthPredictor] Loaded 3 disease models: ['diabetes', 'heart', 'ckd']
+[HealthPredictor] Built SHAP explainers for: ['diabetes', 'heart', 'ckd']
+```
+
+---
 
 ## Known Limitations
 
-- The CKD training dataset is heavily imbalanced (~92% positive), which
-  limits how confidently the model can identify true negatives.
-- Free-tier Gemini API quotas are limited; the RAG/explanation and
-  extraction calls include automatic retries for transient errors.
+- **CKD's `Gender` encoding is an assumption, not a verified fact.** The training dataset's Gender column had no published data dictionary; the frontend assumes `Female=0, Male=1` (scikit-learn's default `LabelEncoder` convention). This should be re-verified against the training notebook before the CKD model's gender-based behavior is trusted.
+- **CKD's predictive signal is comparatively weak.** Even after switching to a larger dataset, correlations with the target are low, and probability distributions for the two classes overlap substantially. CKD's "Low" risk category in particular should not be read as strong reassurance — a disclaimer is surfaced to the user for that case specifically.
+- **This is not a medical device.** Outputs are probabilistic estimates from models trained on public/synthetic datasets, not a diagnosis. A disclaimer to this effect is shown with every report.
